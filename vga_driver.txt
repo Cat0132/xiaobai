@@ -1,0 +1,89 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
+
+entity vga_driver is
+port(
+	rst_n : in std_logic;
+	clk : in std_logic;
+	
+	animate	: out std_logic;
+	xpos	: out integer;
+	ypos	: out integer;
+	data	: in std_logic_vector(2 downto 0);
+	
+	vga_h   : out std_logic;
+	vga_v   : out std_logic;
+	vga_r	: out std_logic;
+	vga_g	: out std_logic;
+	vga_b	: out std_logic
+);
+end vga_driver;
+
+architecture a of vga_driver is
+
+	constant h_sync	: integer := 128;
+	constant h_back	: integer := 88;
+	constant h_disp	: integer := 800;
+	constant h_front	: integer := 40;
+	constant h_total	: integer := 1056;
+	
+	constant v_sync	: integer := 4;
+	constant v_back	: integer := 23;
+	constant v_disp	: integer := 600;
+	constant v_front	: integer := 1;
+	constant v_total	: integer := 628;
+	
+	signal cnt_h : integer;
+	signal cnt_v : integer;
+	signal vga_en : std_logic;
+
+begin
+	
+	process(rst_n,clk)
+	begin
+		if rst_n='0' then
+			cnt_h <= 0;
+		elsif clk'event and clk='1' then
+			if cnt_h < (h_total-1) then
+				cnt_h <= cnt_h + 1;
+			else
+				cnt_h <= 0;
+			end if;
+		end if;
+	end process;
+	
+	process(rst_n,clk)
+	begin
+		if rst_n='0' then
+			cnt_v <= 0;
+		elsif clk'event and clk='1' then
+			if cnt_h = (h_total-1) then
+				if cnt_v < (v_total-1) then
+					cnt_v <= cnt_v + 1;
+				else
+					cnt_v <= 0;
+				end if;
+			end if;
+		end if;			
+	end process;
+	
+	vga_h <= '0' when cnt_h < h_sync else '1';
+	vga_v <= '0' when cnt_v < v_sync else '1';
+	animate <= '1' when (cnt_h = h_total-1) and (cnt_v = v_total-1) else '0'; 
+	
+	xpos <= cnt_h - (h_sync + h_back);
+	ypos <= cnt_v - (v_sync + v_back);
+	
+	
+	vga_en <= '1' when  (cnt_h >= h_sync+h_back) and (cnt_h < h_sync+h_back+h_disp) and
+						(cnt_v >= v_sync+v_back) and (cnt_v < v_sync+v_back+v_disp)
+				  else '0';
+					  
+	vga_r <= data(2) when vga_en='1' else '0';
+	vga_g <= data(1) when vga_en='1' else '0';
+	vga_b <= data(0) when vga_en='1' else '0';
+	
+
+end a;
+

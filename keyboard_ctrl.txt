@@ -1,0 +1,92 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity keyboard_ctrl is
+port(
+	rst_n		: in std_logic;
+	clk			: in std_logic;
+	animate		: in std_logic;
+	ps2_clk		: in std_logic;
+	ps2_data	: in std_logic;
+	
+	move_left	: out std_logic;
+	move_right	: out std_logic;
+	move_center	: out std_logic;
+	qidong	: out std_logic
+);
+end keyboard_ctrl;
+
+architecture a of keyboard_ctrl is
+
+	component ps2scan is
+	port(
+		rst_n		: in std_logic;
+		clk			: in std_logic;
+		ps2_clk		: in std_logic;
+		ps2_data	: in std_logic;	
+		ps2_byte	: out std_logic_vector(7 downto 0);
+		ps2_flag	: out std_logic		-- rising edge indicates a key loose
+	);
+	end component;
+
+	signal ps2_byte : std_logic_vector(7 downto 0);
+	signal ps2_flag	: std_logic;
+	signal ps2_flag_1, ps2_flag_2	: std_logic;
+
+begin
+
+	U1 : ps2scan
+	port map(
+		rst_n		=> rst_n,
+		clk			=> clk,
+		ps2_clk		=> ps2_clk,
+		ps2_data	=> ps2_data,
+		ps2_byte	=> ps2_byte,
+		ps2_flag	=> ps2_flag
+	);
+	
+process(rst_n, clk)
+begin
+    if rst_n = '0' then
+        move_left <= '0';
+        move_right <= '0';
+		  move_center <='0';
+    elsif clk'event and clk = '1' then
+        -- 按键按下的处理
+        if ps2_flag_2 = '0' and ps2_flag_1 = '1' then
+            case ps2_byte is
+                when x"1C" =>  -- 按下 A 键
+                    move_left <= '1';  -- 向左移动
+					 when x"1B" => 
+					     move_center <='1';
+                when x"23" =>  -- 按下 D 键
+                    move_right <= '1';  -- 向右移动
+                when others =>  -- 其他按键，不做处理
+                    null;
+            end case;
+        end if;
+
+		  if ps2_flag_2 = '0' and ps2_flag_1 = '1' then
+		     qidong <='1';
+			  else
+		
+		     qidong <='0';
+			end if;
+   
+    end if;
+end process;
+
+
+
+	process(rst_n, clk)
+    begin
+        if rst_n='0' then
+            ps2_flag_1 <= '1';
+            ps2_flag_2 <= '1';
+        elsif clk'event and clk='1' then
+            ps2_flag_1 <= ps2_flag;
+            ps2_flag_2 <= ps2_flag_1;
+        end if;
+    end process;
+
+end a;

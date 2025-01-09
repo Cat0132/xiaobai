@@ -1,0 +1,78 @@
+library ieee;
+use ieee.std_logic_1164.all;
+
+entity ps2scan is
+port(
+	rst_n		: in std_logic;
+	clk			: in std_logic;
+	ps2_clk		: in std_logic;
+	ps2_data	: in std_logic;
+	
+	ps2_byte	: out std_logic_vector(7 downto 0);
+	ps2_flag	: out std_logic		-- rising edge indicates a key loose
+);
+end ps2scan;
+
+architecture a of ps2scan is
+
+	signal byte_cnt		: integer range 0 to 15;
+	signal temp_data	: std_logic_vector(7 downto 0);
+	signal f0_code		: std_logic;
+   signal ps2_clk_1,ps2_clk_2    : std_logic;
+
+begin
+
+   process(rst_n, clk)
+	begin
+		if RST_n='0' then
+			ps2_clk_1 <= '0';
+			ps2_clk_2 <= '0';
+		elsif clk'event and clk='1' then
+			ps2_clk_1 <= ps2_clk;
+			ps2_clk_2 <= ps2_clk_1;
+		end if;
+	end process;
+
+	process(rst_n, clk)
+	begin
+		if rst_n='0' then
+			byte_cnt <= 0;
+			temp_data <= (others=>'0');		
+		elsif clk'event and clk='1' then
+			if (ps2_clk_1='0' and ps2_clk_2='1') then
+				if byte_cnt=0 then
+                    byte_cnt <= byte_cnt + 1;
+                elsif byte_cnt<9 then
+                    byte_cnt <= byte_cnt + 1;
+					temp_data(7 downto 0) <= ps2_data & temp_data(7 downto 1);
+                elsif byte_cnt<10 then
+                    byte_cnt <= byte_cnt + 1;					
+				else
+					byte_cnt <= 0;
+				end if;
+			end if;
+		end if;
+	end process;
+	
+	process(rst_n, clk)
+	begin
+		if (rst_n='0')then
+			f0_code <= '0';
+			ps2_byte <= x"00";
+            ps2_flag <= '0';
+		elsif (clk'event and clk='1')then
+			if byte_cnt=10 then
+				if temp_data=x"F0" then
+					f0_code <= '1';
+				elsif f0_code='1' then
+					f0_code <= '0';
+					ps2_byte <= temp_data;
+					ps2_flag <= '1';
+				else
+					ps2_flag <= '0';
+				end if;
+			end if;
+		end if;
+	end process;
+
+end a;
